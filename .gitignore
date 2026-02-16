@@ -1,0 +1,26 @@
+# Криптографические ключи - НИКОГДА НЕ ПУШИТЬ!
+keys/
+*.key
+*.pem
+*.priv
+
+# База данных с ключами
+data/
+*.db
+*.sqlite
+
+# Логи с ID агентов
+logs/
+*.log
+*.txt
+*.json
+
+# Временные аудиофайлы
+temp_audio/
+audio_recordings/
+*.wav
+*.aiff
+
+# Системные файлы
+.DS_Store
+.env
