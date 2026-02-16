@@ -1,0 +1,23 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T10:13:21.606Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T10:13:19.598Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    },
+    {
+      "timestamp": "2026-02-16T10:13:20.603Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    },
+    {
+      "timestamp": "2026-02-16T10:13:21.605Z",
+      "message": "📦 Пакетная передача Merkle доказательств"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 3,
+    "startTime": 1771236799597,
+    "lastActivity": "2026-02-16T10:13:21.605Z"
+  }
+}

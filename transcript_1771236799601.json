@@ -1,0 +1,15 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T10:13:19.601Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T10:13:19.598Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 1,
+    "startTime": 1771236799597,
+    "lastActivity": "2026-02-16T10:13:19.598Z"
+  }
+}

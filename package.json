@@ -1,0 +1,34 @@
+{
+  "name": "crchcn-translator",
+  "version": "1.0.0",
+  "description": "GibberLink Translator for CRCHCN token with Merkle Tree integration",
+  "main": "src/translator.js",
+  "scripts": {
+    "start": "node src/translator.js",
+    "demo": "node examples/basic-usage.js",
+    "test": "node tests/test-translator.js",
+    "publish": "npm publish"
+  },
+  "keywords": [
+    "gibberlink",
+    "crchcn",
+    "translator",
+    "ai",
+    "merkle-tree",
+    "cryptography"
+  ],
+  "author": "CrChCn",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CrChCn/crchcn-translator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CrChCn/crchcn-translator/issues"
+  },
+  "homepage": "https://github.com/CrChCn/crchcn-translator#readme",
+  "dependencies": {
+    "ethers": "^6.11.1"
+  },
+  "type": "commonjs"
+}

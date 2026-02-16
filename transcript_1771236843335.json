@@ -1,0 +1,15 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T10:14:03.335Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T10:14:03.333Z",
+      "message": "📦 Пакетная передача Merkle доказательств"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 1,
+    "startTime": 1771236843332,
+    "lastActivity": "2026-02-16T10:14:03.333Z"
+  }
+}
