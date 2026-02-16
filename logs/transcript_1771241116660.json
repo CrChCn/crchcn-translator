@@ -1,0 +1,33 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:25:16.660Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:23:21.584Z",
+      "message": "📤 ИСХОДЯЩЕЕ: kwkhdbhsbfd"
+    },
+    {
+      "timestamp": "2026-02-16T11:23:32.571Z",
+      "message": "📤 ИСХОДЯЩЕЕ: jhdvgeakhfcgvjdkslAfhckaHMSvgdxjkw<hdgjklqaSVGcjlkhsDGbcvjkhlsvAYfcjhasVc"
+    },
+    {
+      "timestamp": "2026-02-16T11:23:55.479Z",
+      "message": "📤 ИСХОДЯЩЕЕ: bhf ghbdtn rfr e nt,y ltkf "
+    },
+    {
+      "timestamp": "2026-02-16T11:24:20.353Z",
+      "message": "📤 ИСХОДЯЩЕЕ: ирочка любомоя как тебя дкла ?"
+    },
+    {
+      "timestamp": "2026-02-16T11:25:16.660Z",
+      "message": "📤 ИСХОДЯЩЕЕ: рочка любовь моя как у тебя дела ты хочешь письку в ротик ?"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 5,
+    "startTime": 1771240978654,
+    "lastActivity": "2026-02-16T11:25:16.660Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

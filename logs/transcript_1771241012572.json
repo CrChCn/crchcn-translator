@@ -1,0 +1,21 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:23:32.572Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:23:21.584Z",
+      "message": "📤 ИСХОДЯЩЕЕ: kwkhdbhsbfd"
+    },
+    {
+      "timestamp": "2026-02-16T11:23:32.571Z",
+      "message": "📤 ИСХОДЯЩЕЕ: jhdvgeakhfcgvjdkslAfhckaHMSvgdxjkw<hdgjklqaSVGcjlkhsDGbcvjkhlsvAYfcjhasVc"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 2,
+    "startTime": 1771240978654,
+    "lastActivity": "2026-02-16T11:23:32.571Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

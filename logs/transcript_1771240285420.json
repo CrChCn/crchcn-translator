@@ -1,0 +1,21 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:11:25.420Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:11:05.797Z",
+      "message": "📤 ИСХОДЯЩЕЕ: Привет от CrChCnBot"
+    },
+    {
+      "timestamp": "2026-02-16T11:11:25.420Z",
+      "message": "📤 ИСХОДЯЩЕЕ: Привет от CrChCnBot"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 2,
+    "startTime": 1771240233720,
+    "lastActivity": "2026-02-16T11:11:25.420Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

@@ -1,0 +1,21 @@
+{
+  "agent": "CrChCnBot",
+  "agentKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5w7b9z1tA92hFOjyMxNR\nr4iHh4VnP7cg6OYGTQYfujvnVAWQY5E5S9C8fOMkr2StFC9PwjBP+qS6oRUYfVi7\nvPIgLrjmc73xQQSCKxSbc5NeUl8rLk7cA+Ecwz+tB7hXQsnkfPq+Gdp8Hr2yGzUV\nK1aXDfiDOEWs/FjfqBio195eLjxR2sE5imV4QrbJu5vKB68DGTg1TeRj/YN69spd\nqH8MwWPuDKSQl8qBbLZGluNEaojjO8Yt0Jl51UAsEWw15RlgNDaADmhJ+0k886G+\nZSU2o4lQYgXAgR08dUYDlObn982z99PiCvMl6NjbEUZOk1/9X9FfAt6ZUZWFIMLA\nQwIDAQAB\n-----END PUBLIC KEY-----\n",
+  "sessionStart": 1771243451019,
+  "sessionEnd": "2026-02-16T12:06:42.870Z",
+  "transcript": [],
+  "stats": {
+    "messagesReceived": 0,
+    "messagesSent": 1,
+    "startTime": 1771243451019,
+    "lastActivity": "2026-02-16T12:05:58.941Z",
+    "totalAudioFiles": 0,
+    "totalKeysGenerated": 0,
+    "totalConnections": 0
+  },
+  "merkleRoot": "6b53a1321795070597c8d3413064063243b21f7b185772366a42fb96bd583213",
+  "leavesCount": 1,
+  "leaves": [
+    "1771243557314:outgoing:33cb0d9bcad09c11fe2f4ce2b998e77a:привет агент "
+  ]
+}

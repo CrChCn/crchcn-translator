@@ -1,0 +1,25 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:02:16.216Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:02:08.209Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:12.213Z",
+      "message": "🔄 Рукопожатие / обмен ключами"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:16.215Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 3,
+    "startTime": 1771239728200,
+    "lastActivity": "2026-02-16T11:02:16.215Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

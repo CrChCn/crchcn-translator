@@ -1,0 +1,37 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:02:28.222Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:02:08.209Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:12.213Z",
+      "message": "🔄 Рукопожатие / обмен ключами"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:16.215Z",
+      "message": "⚡ Передача данных баланса CRCHCN"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:20.218Z",
+      "message": "🔊 Синхронизация майнинга"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:24.219Z",
+      "message": "🔄 Рукопожатие / обмен ключами"
+    },
+    {
+      "timestamp": "2026-02-16T11:02:28.221Z",
+      "message": "📦 Пакетная передача Merkle доказательств"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 6,
+    "startTime": 1771239728200,
+    "lastActivity": "2026-02-16T11:02:28.221Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

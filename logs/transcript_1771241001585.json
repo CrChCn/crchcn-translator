@@ -1,0 +1,17 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:23:21.585Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:23:21.584Z",
+      "message": "📤 ИСХОДЯЩЕЕ: kwkhdbhsbfd"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 1,
+    "startTime": 1771240978654,
+    "lastActivity": "2026-02-16T11:23:21.584Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}

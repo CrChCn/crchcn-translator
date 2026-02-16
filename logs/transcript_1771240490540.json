@@ -1,0 +1,49 @@
+{
+  "agent": "CrChCnBot",
+  "timestamp": "2026-02-16T11:14:50.540Z",
+  "transcript": [
+    {
+      "timestamp": "2026-02-16T11:11:05.797Z",
+      "message": "📤 ИСХОДЯЩЕЕ: Привет от CrChCnBot"
+    },
+    {
+      "timestamp": "2026-02-16T11:11:25.420Z",
+      "message": "📤 ИСХОДЯЩЕЕ: Привет от CrChCnBot"
+    },
+    {
+      "timestamp": "2026-02-16T11:12:35.037Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:13:47.986Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:13:55.849Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:13:59.856Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:14:17.948Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:14:42.787Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    },
+    {
+      "timestamp": "2026-02-16T11:14:50.540Z",
+      "message": "📤 ИСХОДЯЩЕЕ: CRCHCN balance 36000"
+    }
+  ],
+  "stats": {
+    "messagesReceived": 9,
+    "startTime": 1771240233720,
+    "lastActivity": "2026-02-16T11:14:50.540Z"
+  },
+  "merkleRoot": null,
+  "leavesCount": 0
+}
