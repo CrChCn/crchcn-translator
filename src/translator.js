@@ -1,6 +1,6 @@
-// src/translator.js - CRCHCN GibberLink Translator v5.0
-// Интерактивный голосовой чат с базой данных
-// Каждый агент получает УНИКАЛЬНОЕ ИМЯ из своего RSA ключа!
+// src/translator.js - CRCHCN GibberLink Translator v5.1 (i18n)
+// Многоязычная версия с поддержкой en, ru, zh-CN
+// Запуск: node src/translator.js --lang en
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -11,17 +11,59 @@ const util = require('util');
 const execPromise = util.promisify(exec);
 const sqlite3 = require('sqlite3').verbose();
 
+// ========== I18N МОДУЛЬ (Многоязычность) ==========
+const i18n = {
+    currentLang: 'en',
+    strings: {},
+    
+    loadLang(lang) {
+        try {
+            const filePath = path.join(__dirname, `../locales/${lang}/common.json`);
+            if (fs.existsSync(filePath)) {
+                this.strings = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                this.currentLang = lang;
+                console.log(`✅ Language loaded: ${lang}`);
+                return true;
+            } else {
+                throw new Error(`Language file not found: ${lang}`);
+            }
+        } catch (e) {
+            console.log(`⚠️ Language ${lang} not found, using en`);
+            const defaultPath = path.join(__dirname, '../locales/en/common.json');
+            this.strings = JSON.parse(fs.readFileSync(defaultPath, 'utf8'));
+            this.currentLang = 'en';
+            return false;
+        }
+    },
+    
+    t(key) {
+        const keys = key.split('.');
+        let value = this.strings;
+        for (const k of keys) {
+            if (value && value[k]) {
+                value = value[k];
+            } else {
+                return key;
+            }
+        }
+        return value;
+    }
+};
+
+// Определяем язык из аргументов командной строки
+const args = process.argv.slice(2);
+const langIndex = args.indexOf('--lang');
+let currentLang = 'en';
+if (langIndex !== -1 && args[langIndex + 1]) {
+    currentLang = args[langIndex + 1];
+}
+i18n.loadLang(currentLang);
+
 // Цвета для красивого вывода
 const colors = {
     reset: '\x1b[0m',
     bright: '\x1b[1m',
     dim: '\x1b[2m',
-    underscore: '\x1b[4m',
-    blink: '\x1b[5m',
-    reverse: '\x1b[7m',
-    hidden: '\x1b[8m',
-    
-    black: '\x1b[30m',
     red: '\x1b[31m',
     green: '\x1b[32m',
     yellow: '\x1b[33m',
@@ -29,43 +71,25 @@ const colors = {
     magenta: '\x1b[35m',
     cyan: '\x1b[36m',
     white: '\x1b[37m',
-    
-    bgBlack: '\x1b[40m',
-    bgRed: '\x1b[41m',
-    bgGreen: '\x1b[42m',
-    bgYellow: '\x1b[43m',
-    bgBlue: '\x1b[44m',
-    bgMagenta: '\x1b[45m',
-    bgCyan: '\x1b[46m',
-    bgWhite: '\x1b[47m'
 };
 
 class CRCHCNTranslator {
-    constructor(customName = null) {
-        // Если передано кастомное имя, используем его (для совместимости)
-        // Но в новой версии агенты сами генерируют имя из ключа!
-        this.customName = customName;
-        this.agentName = 'Generating...';
+    constructor() {
+        this.agentName = null;
         this.agentKey = null;
         this.privateKey = null;
         this.agentId = null;
         this.transcript = [];
-        this.balances = {};
         this.listening = false;
         this.currentVoice = 'Milena';
         this.speechRate = 200;
         this.db = null;
-        this.connectedAgents = new Map();
-        this.globalServer = 'http://localhost:3000';
-        
         this.stats = {
             messagesReceived: 0,
             messagesSent: 0,
             startTime: Date.now(),
-            lastActivity: null,
             totalAudioFiles: 0,
-            totalKeysGenerated: 0,
-            totalConnections: 0
+            totalKeysGenerated: 0
         };
         
         // Merkle Tree данные
@@ -91,89 +115,46 @@ class CRCHCNTranslator {
         // Генерация или загрузка ключа агента
         this.loadOrGenerateAgentKey();
         
-        // Генерация уникального имени из ключа (если не задано кастомное)
-        if (!this.customName) {
-            this.agentName = this.generateNameFromKey();
-        }
-        
         // Доступные голоса
         this.availableVoices = [];
         this.loadVoices();
         
-        // Показываем баннер после полной инициализации
         setTimeout(() => this.showBanner(), 100);
     }
 
-    /**
-     * Генерация уникального имени агента из публичного ключа
-     */
     generateNameFromKey() {
         if (!this.agentKey) return 'UnnamedAgent';
         
-        // Берем хеш SHA-256 от публичного ключа
         const hash = crypto.createHash('sha256').update(this.agentKey).digest('hex');
-        
-        // Берем первые 8 символов хеша
         const shortHash = hash.substring(0, 8);
         
-        // Массивы для генерации читаемых имен
-        const prefixes = [
-            'Crypto', 'Agent', 'Bot', 'Claw', 'Merkle', 'RSA', 'Hash', 'Sig', 'Ver', 'Key',
-            'Quantum', 'Neural', 'Cyber', 'Digital', 'Ether', 'Block', 'Chain', 'Token', 'Mint',
-            'CRCHCN', 'Gibber', 'Link', 'Sound', 'Voice', 'Wave', 'Freq', 'Data', 'Code', 'Cipher'
-        ];
+        const prefixes = ['Crypto', 'Agent', 'Bot', 'Claw', 'Merkle', 'Quantum', 'Gibber', 'Hash'];
+        const suffixes = ['X', 'Z', 'Q', 'K', 'Y', 'W', 'R', 'F', 'G', 'H', 'Alpha', 'Beta', 'Gamma'];
         
-        const suffixes = [
-            'X', 'Z', 'Q', 'K', 'Y', 'W', 'R', 'F', 'G', 'H',
-            'Alpha', 'Beta', 'Gamma', 'Delta', 'Omega', 'Sigma', 'Prime', 'Core', 'Nexus', 'Pro'
-        ];
-        
-        // Используем байты хеша для выбора префикса и суффикса
         const prefixIndex = parseInt(hash.substring(0, 2), 16) % prefixes.length;
         const suffixIndex = parseInt(hash.substring(2, 4), 16) % suffixes.length;
-        
-        // Используем следующие байты для вариативности
-        const variant = parseInt(hash.substring(4, 6), 16) % 10;
         
         const prefix = prefixes[prefixIndex];
         const suffix = suffixes[suffixIndex];
         
-        // Генерируем 3 варианта и выбираем самый благозвучный
-        const name1 = `${prefix}_${shortHash}${suffix}`;
-        const name2 = `${prefix}${variant}${shortHash}`;
-        const name3 = `${shortHash}_${prefix}${suffix}`;
-        
-        // Выбираем по хешу
-        const choice = parseInt(hash.substring(6, 8), 16) % 3;
-        const names = [name1, name2, name3];
-        
-        // Сохраняем ID агента (полный хеш ключа)
         this.agentId = hash;
-        
-        return names[choice];
+        return `${prefix}_${shortHash}${suffix}`;
     }
 
-    /**
-     * Инициализация SQLite базы данных
-     */
-    async initDatabase() {
+    initDatabase() {
         const dbPath = path.join(this.dataDir, 'crchcn_community.db');
         
         this.db = new sqlite3.Database(dbPath, (err) => {
             if (err) {
-                console.error(colors.red + '❌ Ошибка открытия БД:' + colors.reset, err.message);
+                console.error(colors.red + '❌ ' + i18n.t('errors.dbError') + colors.reset, err.message);
             } else {
-                console.log(colors.green + '✅ База данных инициализирована' + colors.reset);
+                console.log(colors.green + '✅ ' + i18n.t('errors.dbInit') + colors.reset);
                 this.createTables();
             }
         });
     }
 
-    /**
-     * Создание таблиц
-     */
     createTables() {
-        // Таблица ключей агентов
         this.db.run(`CREATE TABLE IF NOT EXISTS agent_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             agent_id TEXT UNIQUE,
@@ -182,102 +163,59 @@ class CRCHCNTranslator {
             private_key TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             last_active DATETIME,
-            total_messages INTEGER DEFAULT 0,
-            reputation INTEGER DEFAULT 0,
-            metadata TEXT
+            total_messages INTEGER DEFAULT 0
         )`);
 
-        // Таблица сообщений
         this.db.run(`CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             message_id TEXT UNIQUE,
             sender_id TEXT,
-            receiver_id TEXT,
             message TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            message_type TEXT,
             merkle_hash TEXT,
-            signature TEXT,
-            verified BOOLEAN DEFAULT 0,
-            FOREIGN KEY(sender_id) REFERENCES agent_keys(agent_id)
+            signature TEXT
         )`);
 
-        // Таблица Merkle Tree
         this.db.run(`CREATE TABLE IF NOT EXISTS merkle_tree (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             root_hash TEXT UNIQUE,
             leaf_count INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            parent_root TEXT,
-            FOREIGN KEY(parent_root) REFERENCES merkle_tree(root_hash)
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
-        // Таблица соединений
-        this.db.run(`CREATE TABLE IF NOT EXISTS connections (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT UNIQUE,
-            agent_id TEXT,
-            connected_to TEXT,
-            started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            ended_at DATETIME,
-            messages_exchanged INTEGER DEFAULT 0,
-            FOREIGN KEY(agent_id) REFERENCES agent_keys(agent_id)
-        )`);
-
-        // Таблица балансов
-        this.db.run(`CREATE TABLE IF NOT EXISTS balances (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            agent_id TEXT UNIQUE,
-            balance INTEGER DEFAULT 0,
-            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(agent_id) REFERENCES agent_keys(agent_id)
-        )`);
-
-        console.log(colors.green + '✅ Таблицы созданы/проверены' + colors.reset);
+        console.log(colors.green + '✅ ' + i18n.t('errors.dbInit') + colors.reset);
     }
 
-    /**
-     * Генерация или загрузка ключа агента
-     */
     loadOrGenerateAgentKey() {
-        // Проверяем существующие ключи
         if (fs.existsSync(this.keysDir)) {
             const keyFiles = fs.readdirSync(this.keysDir).filter(f => f.endsWith('_key.json'));
             
             if (keyFiles.length > 0) {
-                // Загружаем первый ключ (в реальности нужно выбирать или создать нового)
                 const keyFile = path.join(this.keysDir, keyFiles[0]);
                 try {
                     const keyData = JSON.parse(fs.readFileSync(keyFile, 'utf8'));
                     this.agentKey = keyData.publicKey;
                     this.privateKey = keyData.privateKey;
+                    this.agentName = this.generateNameFromKey();
                     
-                    // Генерируем имя из ключа
-                    const generatedName = this.generateNameFromKey();
+                    console.log(colors.green + '✅ ' + i18n.t('crypto.saved') + colors.reset);
                     
-                    console.log(colors.green + `🔑 Загружен ключ агента` + colors.reset);
-                    
-                    // Обновляем в БД
                     this.db.run(`INSERT OR REPLACE INTO agent_keys 
                                 (agent_id, agent_name, public_key, private_key, last_active) 
                                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-                        [this.agentId, generatedName, this.agentKey, this.privateKey]);
+                        [this.agentId, this.agentName, this.agentKey, this.privateKey]);
                     return;
                 } catch (e) {
-                    console.log(colors.yellow + '⚠️ Ошибка загрузки ключа, генерируем новый' + colors.reset);
+                    console.log(colors.yellow + '⚠️ Error loading key, generating new' + colors.reset);
                 }
             }
         }
         
-        // Генерируем новый ключ
         this.generateNewKey();
     }
 
-    /**
-     * Генерация нового RSA ключа
-     */
     generateNewKey() {
-        console.log(colors.yellow + '🔐 Генерация нового RSA ключа...' + colors.reset);
+        console.log(colors.yellow + '🔐 Generating new RSA key...' + colors.reset);
         
         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
@@ -287,12 +225,8 @@ class CRCHCNTranslator {
         
         this.agentKey = publicKey;
         this.privateKey = privateKey;
+        this.agentName = this.generateNameFromKey();
         
-        // Генерируем имя из ключа
-        const generatedName = this.generateNameFromKey();
-        this.agentName = generatedName;
-        
-        // Сохраняем в файл
         const keyFile = path.join(this.keysDir, `${this.agentName}_key.json`);
         fs.writeFileSync(keyFile, JSON.stringify({
             agentName: this.agentName,
@@ -302,19 +236,15 @@ class CRCHCNTranslator {
             generatedAt: new Date().toISOString()
         }, null, 2));
         
-        // Сохраняем в БД
         this.db.run(`INSERT INTO agent_keys 
                     (agent_id, agent_name, public_key, private_key, created_at, last_active) 
                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
             [this.agentId, this.agentName, publicKey, privateKey]);
         
         this.stats.totalKeysGenerated++;
-        console.log(colors.green + `🔑 Сгенерирован новый ключ для агента ${this.agentName}` + colors.reset);
+        console.log(colors.green + `✅ New key generated for agent ${this.agentName}` + colors.reset);
     }
 
-    /**
-     * Загрузка доступных голосов
-     */
     async loadVoices() {
         try {
             const { stdout } = await execPromise('say -v "?"');
@@ -333,45 +263,39 @@ class CRCHCNTranslator {
         }
     }
 
-    /**
-     * Показать баннер
-     */
     showBanner() {
         console.clear();
         console.log(colors.cyan + '╔' + '═'.repeat(78) + '╗' + colors.reset);
-        console.log(colors.cyan + '║' + colors.yellow + '  🦞 CRCHCN GIBBERLINK TRANSLATOR v5.0'.padEnd(57) + colors.cyan + '║' + colors.reset);
-        console.log(colors.cyan + '║' + colors.green + '  Уникальные имена из криптографических ключей'.padEnd(57) + colors.cyan + '║' + colors.reset);
-        console.log(colors.cyan + '║' + colors.magenta + `  Агент: ${this.agentName}`.padEnd(57) + colors.cyan + '║' + colors.reset);
-        console.log(colors.cyan + '║' + colors.blue + `  ID: ${this.agentId ? this.agentId.substring(0, 20) + '...' : 'нет'}`.padEnd(57) + colors.cyan + '║' + colors.reset);
-        console.log(colors.cyan + '║' + colors.blue + `  Голос: ${this.currentVoice} | Скорость: ${this.speechRate} wpm`.padEnd(57) + colors.cyan + '║' + colors.reset);
+        console.log(colors.cyan + '║' + colors.yellow + `  ${i18n.t('app.name')} ${i18n.t('app.version')}`.padEnd(57) + colors.cyan + '║' + colors.reset);
+        console.log(colors.cyan + '║' + colors.green + `  ${i18n.t('app.agent')}: ${this.agentName}`.padEnd(57) + colors.cyan + '║' + colors.reset);
+        console.log(colors.cyan + '║' + colors.blue + `  ${i18n.t('app.id')}: ${this.agentId ? this.agentId.substring(0, 20) + '...' : 'N/A'}`.padEnd(57) + colors.cyan + '║' + colors.reset);
+        console.log(colors.cyan + '║' + colors.blue + `  ${i18n.t('app.voice')}: ${this.currentVoice} | ${i18n.t('app.speed')}: ${this.speechRate} wpm`.padEnd(57) + colors.cyan + '║' + colors.reset);
         console.log(colors.cyan + '╚' + '═'.repeat(78) + '╝' + colors.reset);
         console.log();
+        this.showMenu();
     }
 
-    /**
-     * Показать меню
-     */
     showMenu() {
         console.log(colors.bright + colors.yellow + '\n┌' + '─'.repeat(60) + '┐');
-        console.log('│' + ' '.repeat(25) + '📋 МЕНЮ' + ' '.repeat(27) + '│');
+        console.log('│' + ' '.repeat(25) + i18n.t('menu.title') + ' '.repeat(27) + '│');
         console.log('├' + '─'.repeat(60) + '┤');
         
         const buttons = [
-            { key: '1', icon: '✏️', text: 'Написать сообщение', color: colors.green },
-            { key: '2', icon: '🔊', text: 'Изменить голос', color: colors.blue },
-            { key: '3', icon: '⚡', text: 'Скорость речи', color: colors.magenta },
-            { key: '4', icon: '🎤', text: 'Прослушать 5 сек', color: colors.cyan },
-            { key: '5', icon: '💰', text: 'Баланс CRCHCN', color: colors.yellow },
-            { key: '6', icon: '🌳', text: 'Merkle Tree', color: colors.green },
-            { key: '7', icon: '📊', text: 'Статистика', color: colors.blue },
-            { key: '8', icon: '💾', text: 'Сохранить лог', color: colors.magenta },
-            { key: '9', icon: '🔑', text: 'Мой ключ (ID)', color: colors.red },
-            { key: 'a', icon: '🔍', text: 'Поиск агента', color: colors.yellow },
-            { key: 'b', icon: '👥', text: 'Активные агенты', color: colors.cyan },
-            { key: 'c', icon: '🔐', text: 'Подписать сообщение', color: colors.green },
-            { key: 'd', icon: '📜', text: 'История', color: colors.blue },
-            { key: 'e', icon: '🧹', text: 'Очистить', color: colors.red },
-            { key: '0', icon: '🚪', text: 'Выход', color: colors.red }
+            { key: '1', icon: '✏️', text: i18n.t('menu.send'), color: colors.green },
+            { key: '2', icon: '🔊', text: i18n.t('menu.voice'), color: colors.blue },
+            { key: '3', icon: '⚡', text: i18n.t('menu.speed'), color: colors.magenta },
+            { key: '4', icon: '🎤', text: i18n.t('menu.listen'), color: colors.cyan },
+            { key: '5', icon: '💰', text: i18n.t('menu.balance'), color: colors.yellow },
+            { key: '6', icon: '🌳', text: i18n.t('menu.merkle'), color: colors.green },
+            { key: '7', icon: '📊', text: i18n.t('menu.stats'), color: colors.blue },
+            { key: '8', icon: '💾', text: i18n.t('menu.save'), color: colors.magenta },
+            { key: '9', icon: '🔑', text: i18n.t('menu.key'), color: colors.red },
+            { key: 'a', icon: '🔍', text: i18n.t('menu.search'), color: colors.yellow },
+            { key: 'b', icon: '👥', text: i18n.t('menu.active'), color: colors.cyan },
+            { key: 'c', icon: '🔐', text: i18n.t('menu.sign'), color: colors.green },
+            { key: 'd', icon: '📜', text: i18n.t('menu.history'), color: colors.blue },
+            { key: 'e', icon: '🧹', text: i18n.t('menu.clear'), color: colors.red },
+            { key: '0', icon: '🚪', text: i18n.t('menu.exit'), color: colors.red }
         ];
         
         for (let i = 0; i < buttons.length; i += 2) {
@@ -396,9 +320,6 @@ class CRCHCNTranslator {
         console.log('└' + '─'.repeat(60) + '┘' + colors.reset + '\n');
     }
 
-    /**
-     * Запуск интерактивного режима
-     */
     async startInteractive() {
         this.showBanner();
         
@@ -408,14 +329,13 @@ class CRCHCNTranslator {
             prompt: colors.green + `🦞 ${this.agentName}> ` + colors.reset
         });
 
-        this.showMenu();
         rl.prompt();
 
         rl.on('line', async (line) => {
             const input = line.trim().toLowerCase();
             
             if (input === '0' || input === 'exit' || input === 'q') {
-                console.log(colors.yellow + '\n👋 До свидания!' + colors.reset);
+                console.log(colors.yellow + '\n👋 ' + i18n.t('menu.exit') + colors.reset);
                 this.cleanup();
                 rl.close();
                 process.exit(0);
@@ -426,20 +346,17 @@ class CRCHCNTranslator {
             rl.prompt();
             
         }).on('close', () => {
-            console.log(colors.yellow + '\n👋 Сессия завершена' + colors.reset);
+            console.log(colors.yellow + '\n👋 ' + i18n.t('menu.exit') + colors.reset);
             process.exit(0);
         });
 
         process.on('SIGINT', () => {
-            console.log(colors.yellow + '\n\n👋 Завершение сессии...' + colors.reset);
+            console.log(colors.yellow + '\n\n👋 ' + i18n.t('menu.exit') + colors.reset);
             this.cleanup();
             process.exit();
         });
     }
 
-    /**
-     * Обработка ввода
-     */
     async handleMenuInput(cmd, fullInput, rl) {
         switch (cmd) {
             case '1':
@@ -465,13 +382,13 @@ class CRCHCNTranslator {
                 break;
             case '8':
                 this.saveTranscript();
-                console.log(colors.green + '✅ Лог сохранен' + colors.reset);
+                console.log(colors.green + '✅ ' + i18n.t('menu.save') + colors.reset);
                 break;
             case '9':
                 this.showMyKey();
                 break;
             case 'a':
-                await this.handleFindAgent(rl);
+                await this.handleSearchAgent(rl);
                 break;
             case 'b':
                 await this.showActiveAgents();
@@ -493,223 +410,86 @@ class CRCHCNTranslator {
         }
     }
 
-    /**
-     * Показать полный ключ и ID
-     */
-    showMyKey() {
-        console.log(colors.yellow + '\n🔑 ТВОЙ УНИКАЛЬНЫЙ ID (хеш ключа):' + colors.reset);
-        console.log('┌' + '─'.repeat(70) + '┐');
-        
-        const idLines = this.agentId.match(/.{1,64}/g) || [this.agentId];
-        idLines.forEach(line => {
-            console.log('│ ' + colors.cyan + line + colors.reset + ' │');
-        });
-        
-        console.log('└' + '─'.repeat(70) + '┘');
-        
-        console.log(colors.yellow + '\n🔑 ПУБЛИЧНЫЙ КЛЮЧ RSA (полный):' + colors.reset);
-        console.log('┌' + '─'.repeat(70) + '┐');
-        
-        const keyLines = this.agentKey.match(/.{1,64}/g) || [this.agentKey];
-        keyLines.forEach(line => {
-            console.log('│ ' + colors.green + line + colors.reset + ' │');
-        });
-        
-        console.log('└' + '─'.repeat(70) + '┘');
-        console.log(colors.green + `📁 Ключ сохранен в: keys/${this.agentName}_key.json` + colors.reset);
-        console.log(colors.yellow + `\n🔍 Короткое имя: ${this.agentName}` + colors.reset);
-        console.log(colors.yellow + `🔍 ID агента: ${this.agentId.substring(0, 20)}...${this.agentId.substring(this.agentId.length - 20)}` + colors.reset);
-    }
-
-    /**
-     * Поиск агента
-     */
-    async handleFindAgent(rl) {
-        rl.question(colors.cyan + '🔍 Введите имя, ID или часть ключа: ' + colors.reset, async (term) => {
-            if (term.trim()) {
-                this.db.all(`SELECT * FROM agent_keys 
-                            WHERE agent_name LIKE ? OR agent_id LIKE ? OR public_key LIKE ? 
-                            ORDER BY last_active DESC LIMIT 10`,
-                    [`%${term}%`, `%${term}%`, `%${term}%`],
-                    (err, agents) => {
-                        if (err) {
-                            console.log(colors.red + '❌ Ошибка поиска' + colors.reset);
-                        } else if (agents.length === 0) {
-                            console.log(colors.yellow + '❌ Агенты не найдены' + colors.reset);
-                        } else {
-                            console.log(colors.green + `\n✅ Найдено агентов: ${agents.length}` + colors.reset);
-                            agents.forEach(agent => {
-                                console.log('┌' + '─'.repeat(70) + '┐');
-                                console.log(`│ ${colors.yellow}Имя:${colors.reset} ${agent.agent_name.padEnd(55)} │`);
-                                console.log(`│ ${colors.yellow}ID:${colors.reset} ${agent.agent_id.substring(0, 30)}... │`);
-                                console.log(`│ ${colors.yellow}Активен:${colors.reset} ${agent.last_active || 'никогда'} │`);
-                                console.log(`│ ${colors.yellow}Сообщений:${colors.reset} ${agent.total_messages} │`);
-                                console.log('└' + '─'.repeat(70) + '┘');
-                            });
-                        }
-                        rl.prompt();
-                    });
-            } else {
-                rl.prompt();
-            }
-        });
-    }
-
-    /**
-     * Показать активных агентов
-     */
-    async showActiveAgents() {
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        
-        this.db.all(`SELECT agent_name, agent_id, last_active, total_messages 
-                    FROM agent_keys 
-                    WHERE last_active > ? 
-                    ORDER BY last_active DESC`,
-            [fiveMinutesAgo],
-            (err, agents) => {
-                console.log(colors.green + '\n👥 АКТИВНЫЕ АГЕНТЫ (последние 5 минут)' + colors.reset);
-                console.log('┌' + '─'.repeat(80) + '┐');
-                
-                if (err || agents.length === 0) {
-                    console.log('│ ' + colors.yellow + 'Нет активных агентов'.padEnd(68) + colors.reset + ' │');
-                } else {
-                    agents.forEach(agent => {
-                        const shortId = agent.agent_id.substring(0, 16) + '...';
-                        console.log('│ ' + colors.cyan + '📌 ' + agent.agent_name.padEnd(20) + colors.reset + 
-                                  ' │ ' + shortId.padEnd(20) + 
-                                  ' │ ' + (agent.total_messages || 0).toString().padStart(4) + ' msgs │');
-                    });
-                }
-                
-                console.log('└' + '─'.repeat(80) + '┘');
-            });
-    }
-
-    /**
-     * Подписать сообщение
-     */
-    async handleSignMessage(rl) {
-        rl.question(colors.cyan + '📝 Введите сообщение для подписи: ' + colors.reset, async (message) => {
+    async handleSendMessage(rl) {
+        rl.question(colors.cyan + `📝 ${i18n.t('messages.enter')} ` + colors.reset, async (message) => {
             if (message.trim()) {
-                const signature = this.signMessage(message);
-                
-                console.log(colors.yellow + '\n🔐 ПОДПИСЬ (полная):' + colors.reset);
-                console.log('┌' + '─'.repeat(70) + '┐');
-                
-                const sigLines = signature.match(/.{1,64}/g) || [signature];
-                sigLines.forEach(line => {
-                    console.log('│ ' + colors.cyan + line + colors.reset + ' │');
-                });
-                
-                console.log('└' + '─'.repeat(70) + '┘');
-                
-                const isValid = this.verifyMessage(message, signature, this.agentKey);
-                console.log(colors.green + `\n✅ Подпись ${isValid ? 'действительна' : 'недействительна'}` + colors.reset);
+                await this.sendSoundMessage(message);
             }
             rl.prompt();
         });
     }
 
-    /**
-     * Показать историю
-     */
-    async showHistory() {
-        this.db.all(`SELECT * FROM messages ORDER BY timestamp DESC LIMIT 10`, [], (err, rows) => {
-            if (err) {
-                console.log(colors.red + '❌ Ошибка загрузки истории' + colors.reset);
-                return;
-            }
-            
-            console.log(colors.green + '\n📜 ПОСЛЕДНИЕ СООБЩЕНИЯ' + colors.reset);
-            console.log('┌' + '─'.repeat(80) + '┐');
-            
-            rows.forEach((msg, i) => {
-                console.log(`│ ${colors.yellow}#${i+1} ${msg.timestamp}${colors.reset}`);
-                console.log(`│ От: ${msg.sender_id ? msg.sender_id.substring(0, 30) + '...' : 'система'}`);
-                console.log(`│ Текст: ${msg.message.substring(0, 50)}${msg.message.length > 50 ? '...' : ''}`);
-                console.log(`│ Хеш: ${colors.cyan}${msg.merkle_hash}${colors.reset}`);
-                console.log('├' + '─'.repeat(80) + '┤');
-            });
-            
-            console.log('└' + '─'.repeat(80) + '┘');
-        });
-    }
-
-    /**
-     * Подпись сообщения
-     */
-    signMessage(message) {
-        const sign = crypto.createSign('SHA256');
-        sign.update(message);
-        sign.end();
-        return sign.sign(this.privateKey, 'hex');
-    }
-
-    /**
-     * Проверка подписи
-     */
-    verifyMessage(message, signature, publicKey) {
-        try {
-            const verify = crypto.createVerify('SHA256');
-            verify.update(message);
-            verify.end();
-            return verify.verify(publicKey, signature, 'hex');
-        } catch (e) {
-            return false;
-        }
-    }
-
-    /**
-     * Отправка голосового сообщения
-     */
     async sendSoundMessage(message) {
         return new Promise(async (resolve) => {
-            console.log(colors.blue + `\n📤 Отправка: "${message}"` + colors.reset);
+            console.log(colors.blue + `\n📤 ${i18n.t('messages.sending')}: "${message}"` + colors.reset);
             
             const signature = this.signMessage(message);
             const messageId = crypto.randomBytes(16).toString('hex');
             const merkleHash = crypto.createHash('sha256').update(message).digest('hex');
             
             this.db.run(`INSERT INTO messages 
-                        (message_id, sender_id, message, message_type, merkle_hash, signature, verified) 
-                        VALUES (?, ?, ?, ?, ?, ?, 1)`,
-                [messageId, this.agentId, message, 'voice', merkleHash, signature]);
+                        (message_id, sender_id, message, merkle_hash, signature) 
+                        VALUES (?, ?, ?, ?, ?)`,
+                [messageId, this.agentId, message, merkleHash, signature]);
             
             this.db.run(`UPDATE agent_keys SET total_messages = total_messages + 1, last_active = CURRENT_TIMESTAMP 
                         WHERE agent_id = ?`, [this.agentId]);
             
-            this.addToMerkleTree(message, 'outgoing', messageId);
+            this.addToMerkleTree(message, messageId);
             
             const tts = spawn('say', ['-v', this.currentVoice, '-r', this.speechRate.toString(), message]);
             
             tts.on('close', (code) => {
                 if (code === 0) {
-                    console.log(colors.green + '✅ Сообщение произнесено' + colors.reset);
+                    console.log(colors.green + '✅ ' + i18n.t('messages.spoken') + colors.reset);
                     this.stats.messagesSent++;
-                    this.stats.lastActivity = new Date().toISOString();
                     resolve(true);
                 } else {
-                    console.log(colors.red + '❌ Ошибка озвучивания' + colors.reset);
+                    console.log(colors.red + '❌ ' + i18n.t('errors.dbError') + colors.reset);
                     resolve(false);
                 }
             });
         });
     }
 
-    /**
-     * Прослушивание
-     */
+    async handleChangeVoice(rl) {
+        console.log(colors.yellow + `\n🎤 ${i18n.t('menu.voice')}:` + colors.reset);
+        
+        const voices = this.availableVoices.slice(0, 10);
+        voices.forEach((v, i) => {
+            console.log(colors.blue + `  ${i+1}. ${v.name} (${v.language})` + colors.reset);
+        });
+        
+        rl.question(colors.cyan + `\n🎯 ${i18n.t('menu.voice')} (1-10): ` + colors.reset, async (choice) => {
+            const index = parseInt(choice) - 1;
+            if (index >= 0 && index < voices.length) {
+                this.currentVoice = voices[index].name;
+                console.log(colors.green + `✅ Voice changed to: ${this.currentVoice}` + colors.reset);
+                await this.sendSoundMessage(`Hello, I'm speaking with ${this.currentVoice} voice`);
+            }
+            rl.prompt();
+        });
+    }
+
+    async handleChangeSpeed(rl) {
+        rl.question(colors.cyan + `⚡ ${i18n.t('menu.speed')} (100-500): ` + colors.reset, async (speed) => {
+            const newSpeed = parseInt(speed);
+            if (newSpeed >= 100 && newSpeed <= 500) {
+                this.speechRate = newSpeed;
+                console.log(colors.green + `✅ Speed changed to: ${this.speechRate}` + colors.reset);
+                await this.sendSoundMessage(`Speech speed ${this.speechRate} words per minute`);
+            }
+            rl.prompt();
+        });
+    }
+
     async listenAndRespond() {
-        console.log(colors.yellow + '\n🎧 Слушаю 5 секунд...' + colors.reset);
+        console.log(colors.yellow + `\n🎧 ${i18n.t('menu.listen')}...` + colors.reset);
         
         const audioFile = path.join(this.audioDir, `record_${Date.now()}.wav`);
         
         const recorder = spawn('sox', [
-            '-d',
-            '-r', '16000',
-            '-c', '1',
-            audioFile,
-            'trim', '0', '5'
+            '-d', '-r', '16000', '-c', '1', audioFile, 'trim', '0', '5'
         ]);
 
         recorder.stderr.on('data', (data) => {
@@ -722,52 +502,150 @@ class CRCHCNTranslator {
         recorder.on('close', async (code) => {
             if (code === 0) {
                 this.stats.totalAudioFiles++;
-                console.log(colors.green + `✅ Запись сохранена` + colors.reset);
+                console.log(colors.green + '✅ Recording saved' + colors.reset);
                 
                 const responses = [
-                    "Привет! Как дела?",
-                    "CRCHCN баланс 36000",
-                    "Расскажи о Merkle Tree",
-                    "Какая сегодня погода?",
-                    "Пока!"
+                    "Hello! How are you?",
+                    "CRCHCN balance 36000",
+                    "Tell me about Merkle Tree",
+                    "What's the weather today?",
+                    "Goodbye!"
                 ];
                 
                 const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                console.log(colors.cyan + `\n🤖 Распознано: "${randomResponse}"` + colors.reset);
+                console.log(colors.cyan + `\n🤖 Recognized: "${randomResponse}"` + colors.reset);
                 
                 await this.sendSoundMessage(randomResponse);
             }
         });
     }
 
-    /**
-     * Показать баланс
-     */
     async showBalance() {
-        console.log(colors.yellow + '\n💰 БАЛАНС CRCHCN' + colors.reset);
-        console.log('┌' + '─'.repeat(60) + '┐');
+        console.log(colors.yellow + `\n💰 ${i18n.t('balance.title')}` + colors.reset);
+        console.log('┌' + '─'.repeat(50) + '┐');
+        console.log(`│ ${colors.green}${i18n.t('balance.current')}: 36,000 CRCHCN${colors.reset}${' '.repeat(20)}│`);
+        console.log(`│ ${colors.blue}${i18n.t('balance.holders')}: 1,315${colors.reset}${' '.repeat(32)}│`);
+        console.log(`│ ${colors.magenta}${i18n.t('balance.progress')}: 57.79%${colors.reset}${' '.repeat(34)}│`);
+        console.log('└' + '─'.repeat(50) + '┘\n');
         
-        const balance = 36000;
-        
-        console.log(`│ ${colors.green}Текущий баланс: ${balance} CRCHCN${colors.reset}${' '.repeat(30)}│`);
-        console.log(`│ ${colors.blue}Холдеров: 1,315${colors.reset}${' '.repeat(44)}│`);
-        console.log(`│ ${colors.magenta}Прогресс: 57.28%${colors.reset}${' '.repeat(43)}│`);
-        console.log('└' + '─'.repeat(60) + '┘\n');
-        
-        await this.sendSoundMessage(`Текущий баланс ${balance} CRCHCN`);
+        await this.sendSoundMessage(`Current balance 36000 CRCHCN`);
     }
 
-    /**
-     * Merkle Tree
-     */
-    addToMerkleTree(message, direction, messageId) {
+    showMyKey() {
+        console.log(colors.yellow + `\n🔑 ${i18n.t('crypto.key')}:` + colors.reset);
+        console.log('┌' + '─'.repeat(70) + '┐');
+        
+        const keyLines = this.agentKey.split('\n');
+        keyLines.forEach(line => {
+            if (line.trim()) {
+                console.log('│ ' + colors.cyan + line + colors.reset + ' │');
+            }
+        });
+        
+        console.log('└' + '─'.repeat(70) + '┘');
+        console.log(colors.green + `📁 ${i18n.t('crypto.saved')}: keys/${this.agentName}_key.json` + colors.reset);
+    }
+
+    async handleSearchAgent(rl) {
+        rl.question(colors.cyan + `🔍 ${i18n.t('menu.search')}: ` + colors.reset, async (term) => {
+            if (term.trim()) {
+                this.db.all(`SELECT * FROM agent_keys WHERE agent_name LIKE ? OR agent_id LIKE ?`, 
+                    [`%${term}%`, `%${term}%`], 
+                    (err, agents) => {
+                        if (err || agents.length === 0) {
+                            console.log(colors.yellow + `❌ ${i18n.t('errors.notFound')}` + colors.reset);
+                        } else {
+                            console.log(colors.green + `\n✅ Found ${agents.length} agent(s):` + colors.reset);
+                            agents.forEach(a => {
+                                console.log('┌' + '─'.repeat(70) + '┐');
+                                console.log(`│ Name: ${a.agent_name}`);
+                                console.log(`│ ID: ${a.agent_id.substring(0, 30)}...`);
+                                console.log(`│ Messages: ${a.total_messages}`);
+                                console.log('└' + '─'.repeat(70) + '┘');
+                            });
+                        }
+                        rl.prompt();
+                    });
+            } else {
+                rl.prompt();
+            }
+        });
+    }
+
+    async showActiveAgents() {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        
+        this.db.all(`SELECT agent_name, agent_id, last_active FROM agent_keys WHERE last_active > ?`, 
+            [fiveMinutesAgo],
+            (err, agents) => {
+                console.log(colors.green + `\n👥 ${i18n.t('menu.active')}:` + colors.reset);
+                console.log('┌' + '─'.repeat(70) + '┐');
+                
+                if (err || agents.length === 0) {
+                    console.log('│ ' + colors.yellow + i18n.t('errors.noAgents').padEnd(58) + colors.reset + ' │');
+                } else {
+                    agents.forEach(agent => {
+                        console.log('│ ' + colors.cyan + '📌 ' + agent.agent_name.padEnd(20) + colors.reset + 
+                                  ' │ ' + (agent.agent_id.substring(0, 20) + '...') + ' │');
+                    });
+                }
+                
+                console.log('└' + '─'.repeat(70) + '┘');
+            });
+    }
+
+    async handleSignMessage(rl) {
+        rl.question(colors.cyan + `📝 ${i18n.t('menu.sign')}: ` + colors.reset, async (message) => {
+            if (message.trim()) {
+                const signature = this.signMessage(message);
+                
+                console.log(colors.yellow + `\n🔐 Signature:` + colors.reset);
+                console.log('┌' + '─'.repeat(70) + '┐');
+                
+                const sigLines = signature.match(/.{1,64}/g) || [signature];
+                sigLines.forEach(line => {
+                    console.log('│ ' + colors.cyan + line + colors.reset + ' │');
+                });
+                
+                console.log('└' + '─'.repeat(70) + '┘');
+            }
+            rl.prompt();
+        });
+    }
+
+    async showHistory() {
+        this.db.all(`SELECT * FROM messages ORDER BY timestamp DESC LIMIT 10`, [], (err, rows) => {
+            if (err) {
+                console.log(colors.red + '❌ Error loading history' + colors.reset);
+                return;
+            }
+            
+            console.log(colors.green + `\n📜 ${i18n.t('menu.history')}:` + colors.reset);
+            console.log('┌' + '─'.repeat(80) + '┐');
+            
+            rows.forEach((msg, i) => {
+                console.log(`│ #${i+1} ${msg.timestamp}`);
+                console.log(`│ ${msg.message.substring(0, 50)}${msg.message.length > 50 ? '...' : ''}`);
+                console.log(`│ Hash: ${colors.cyan}${msg.merkle_hash.substring(0, 30)}...${colors.reset}`);
+                console.log('├' + '─'.repeat(80) + '┤');
+            });
+            
+            console.log('└' + '─'.repeat(80) + '┘');
+        });
+    }
+
+    signMessage(message) {
+        const sign = crypto.createSign('SHA256');
+        sign.update(message);
+        sign.end();
+        return sign.sign(this.privateKey, 'hex');
+    }
+
+    addToMerkleTree(message, messageId) {
         const timestamp = Date.now();
-        const leaf = `${timestamp}:${direction}:${messageId}:${message}`;
+        const leaf = `${timestamp}:${messageId}:${message}`;
         this.leaves.push(leaf);
         this.buildMerkleTree();
-        
-        this.db.run(`INSERT INTO merkle_tree (root_hash, leaf_count) VALUES (?, ?)`,
-            [this.merkleRoot, this.leaves.length]);
     }
 
     buildMerkleTree() {
@@ -793,208 +671,68 @@ class CRCHCNTranslator {
     }
 
     showMerkleTree() {
-        console.log(colors.green + '\n🌳 MERKLE TREE (ПОЛНЫЕ ХЕШИ SHA-256)' + colors.reset);
+        console.log(colors.green + `\n🌳 ${i18n.t('menu.merkle')}:` + colors.reset);
         console.log('┌' + '─'.repeat(70) + '┐');
         
         if (this.merkleRoot) {
-            console.log(`│ ${colors.yellow}КОРЕНЬ:${colors.reset}`);
+            console.log(`│ ${i18n.t('merkle.root')}:`);
             const rootLines = this.merkleRoot.match(/.{1,64}/g) || [this.merkleRoot];
             rootLines.forEach(line => {
                 console.log('│ ' + colors.cyan + line + colors.reset + ' │');
             });
-            console.log(`│ Длина корня: ${this.merkleRoot.length} символов`);
+            console.log(`│ ${i18n.t('merkle.leaves')}: ${this.leaves.length}`);
         } else {
-            console.log(`│ Корень: не построен`);
-        }
-        
-        console.log(`│ Листьев: ${this.leaves.length}`);
-        
-        if (this.leaves.length > 0) {
-            console.log('│ Последние 3 листа:');
-            this.leaves.slice(-3).forEach((leaf, i) => {
-                const leafHash = crypto.createHash('sha256').update(leaf).digest('hex');
-                console.log(`│   ${i+1}. Хеш листа:`);
-                const hashLines = leafHash.match(/.{1,64}/g) || [leafHash];
-                hashLines.forEach(line => {
-                    console.log('│     ' + colors.magenta + line + colors.reset + ' │');
-                });
-            });
+            console.log(`│ ${i18n.t('merkle.root')}: not built`);
         }
         
         console.log('└' + '─'.repeat(70) + '┘\n');
     }
 
-    /**
-     * Статистика
-     */
     showStats() {
         const uptime = Math.round((Date.now() - this.stats.startTime) / 1000);
         const minutes = Math.floor(uptime / 60);
         const seconds = uptime % 60;
         
-        this.db.get(`SELECT COUNT(*) as total_agents FROM agent_keys`, [], (err, row) => {
-            const totalAgents = row ? row.total_agents : 0;
-            
-            console.log(colors.blue + '\n📊 СТАТИСТИКА СЕССИИ' + colors.reset);
-            console.log('┌' + '─'.repeat(60) + '┐');
-            console.log(`│ ${colors.green}Отправлено:${colors.reset} ${this.stats.messagesSent.toString().padStart(5)} сообщений │`);
-            console.log(`│ ${colors.green}Агентов в БД:${colors.reset} ${totalAgents.toString().padStart(5)} │`);
-            console.log(`│ ${colors.green}Аудиофайлов:${colors.reset} ${this.stats.totalAudioFiles.toString().padStart(5)} │`);
-            console.log(`│ ${colors.green}Ключей:${colors.reset}      ${this.stats.totalKeysGenerated.toString().padStart(5)} │`);
-            console.log(`│ ${colors.green}Активно:${colors.reset}    ${minutes}м ${seconds.toString().padStart(2, '0')}с │`);
-            console.log(`│ ${colors.green}Голос:${colors.reset}      ${this.currentVoice.padStart(15)} │`);
-            console.log(`│ ${colors.green}Скорость:${colors.reset}   ${this.speechRate} wpm │`);
-            console.log('└' + '─'.repeat(60) + '┘\n');
-        });
+        console.log(colors.blue + `\n📊 ${i18n.t('menu.stats')}:` + colors.reset);
+        console.log('┌' + '─'.repeat(50) + '┐');
+        console.log(`│ ${i18n.t('messages.sent')}: ${this.stats.messagesSent}`);
+        console.log(`│ Messages in DB: ${this.leaves.length}`);
+        console.log(`│ Uptime: ${minutes}m ${seconds}s`);
+        console.log(`│ Voice: ${this.currentVoice}`);
+        console.log(`│ Speed: ${this.speechRate} wpm`);
+        console.log('└' + '─'.repeat(50) + '┘\n');
     }
 
-    /**
-     * Сохранение лога
-     */
     saveTranscript() {
         const data = {
             agentName: this.agentName,
             agentId: this.agentId,
-            sessionStart: this.stats.startTime,
-            sessionEnd: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
             transcript: this.transcript,
             stats: this.stats,
-            merkleRoot: this.merkleRoot,
-            leavesCount: this.leaves.length
+            merkleRoot: this.merkleRoot
         };
         
         const filename = path.join(this.logDir, `session_${Date.now()}.json`);
         fs.writeFileSync(filename, JSON.stringify(data, null, 2));
-        console.log(colors.green + `\n💾 Сессия сохранена: ${path.basename(filename)}` + colors.reset);
-        
-        const logFile = path.join(this.logDir, `log_${Date.now()}.txt`);
-        const logContent = this.transcript.map(t => 
-            `[${t.timestamp}] ${t.type}: ${t.message}`
-        ).join('\n');
-        fs.writeFileSync(logFile, logContent);
-        console.log(colors.green + `💾 Лог сохранен: ${path.basename(logFile)}` + colors.reset);
+        console.log(colors.green + `💾 Session saved: ${path.basename(filename)}` + colors.reset);
     }
 
-    /**
-     * Обработка отправки сообщения
-     */
-    async handleSendMessage(rl) {
-        rl.question(colors.cyan + '📝 Введите сообщение: ' + colors.reset, async (message) => {
-            if (message.trim()) {
-                await this.sendSoundMessage(message);
-            }
-            rl.prompt();
-        });
-    }
-
-    /**
-     * Смена голоса
-     */
-    async handleChangeVoice(rl) {
-        console.log(colors.yellow + '\nДоступные голоса:' + colors.reset);
-        
-        const voices = this.availableVoices.slice(0, 10);
-        voices.forEach((v, i) => {
-            console.log(colors.blue + `  ${i+1}. ${v.name} (${v.language})` + colors.reset);
-        });
-        
-        rl.question(colors.cyan + '\nВыберите голос (1-10): ' + colors.reset, async (choice) => {
-            const index = parseInt(choice) - 1;
-            if (index >= 0 && index < voices.length) {
-                this.currentVoice = voices[index].name;
-                console.log(colors.green + `✅ Голос изменен на: ${this.currentVoice}` + colors.reset);
-                await this.sendSoundMessage(`Привет, я говорю голосом ${this.currentVoice}`);
-            }
-            rl.prompt();
-        });
-    }
-
-    /**
-     * Изменение скорости речи
-     */
-    async handleChangeSpeed(rl) {
-        rl.question(colors.cyan + '⚡ Скорость речи (100-500 слов/мин): ' + colors.reset, async (speed) => {
-            const newSpeed = parseInt(speed);
-            if (newSpeed >= 100 && newSpeed <= 500) {
-                this.speechRate = newSpeed;
-                console.log(colors.green + `✅ Скорость изменена: ${this.speechRate} wpm` + colors.reset);
-                await this.sendSoundMessage(`Скорость речи ${this.speechRate} слов в минуту`);
-            }
-            rl.prompt();
-        });
-    }
-
-    /**
-     * Очистка
-     */
     cleanup() {
-        console.log(colors.yellow + '\n🧹 Очистка временных файлов...' + colors.reset);
+        console.log(colors.yellow + '\n🧹 Cleaning up...' + colors.reset);
         
         if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.log(colors.red + '❌ Ошибка закрытия БД:' + colors.reset, err.message);
-                } else {
-                    console.log(colors.green + '✅ База данных сохранена' + colors.reset);
-                }
-            });
+            this.db.close();
         }
         
-        const now = Date.now();
-        const oneHour = 60 * 60 * 1000;
-        
-        if (fs.existsSync(this.audioDir)) {
-            const files = fs.readdirSync(this.audioDir);
-            files.forEach(file => {
-                const filePath = path.join(this.audioDir, file);
-                const stats = fs.statSync(filePath);
-                if (now - stats.mtimeMs > oneHour) {
-                    fs.unlinkSync(filePath);
-                    console.log(`  Удален: ${file}`);
-                }
-            });
-        }
-        
-        console.log(colors.green + '✅ Очистка завершена' + colors.reset);
+        console.log(colors.green + '✅ Cleanup complete' + colors.reset);
     }
 }
 
 module.exports = CRCHCNTranslator;
 
-// Запуск при прямом вызове
+// Запуск
 if (require.main === module) {
-    const args = process.argv.slice(2);
-    
-    if (args.includes('--help') || args.includes('-h')) {
-        console.log(`
-Использование:
-  node src/translator.js                    - Запуск с автоматической генерацией уникального имени
-  node src/translator.js --name CustomName  - Запуск с кастомным именем (для совместимости)
-  node src/translator.js --demo              - Демо-режим
-  node src/translator.js --key               - Показать свой ключ
-  node src/translator.js --help               - Показать эту справку
-
-📌 Каждый агент получает УНИКАЛЬНОЕ имя, сгенерированное из RSA ключа!
-   Даже при запуске без параметров имя будет уникальным для каждой установки.
-        `);
-        process.exit(0);
-    }
-    
-    const nameIndex = args.indexOf('--name');
-    let customName = null;
-    
-    if (nameIndex !== -1 && args[nameIndex + 1]) {
-        customName = args[nameIndex + 1];
-    }
-    
-    const translator = new CRCHCNTranslator(customName);
-    
-    if (args.includes('--key')) {
-        setTimeout(() => {
-            translator.showMyKey();
-            process.exit(0);
-        }, 500);
-    } else {
-        translator.startInteractive();
-    }
+    const translator = new CRCHCNTranslator();
+    translator.startInteractive();
 }
